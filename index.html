@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>오늘의 응원 한마디</title>
+  <style>
+    :root {
+      --bg: #fff8ef;
+      --card: #ffffff;
+      --text: #2b2118;
+      --muted: #7a6a5c;
+      --accent: #ff7a45;
+      --accent-dark: #e8622d;
+      --border: #f0dfcf;
+      --error-bg: #fff0ee;
+      --error-text: #b3261e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      font-size: 20px;
+      line-height: 1.6;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 32px 16px;
+    }
+
+    main {
+      width: 100%;
+      max-width: 520px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px 24px;
+      box-shadow: 0 8px 24px rgba(120, 80, 40, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      line-height: 1.3;
+      text-align: center;
+    }
+
+    .sub {
+      margin: 0 0 28px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 1rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .hint {
+      display: block;
+      font-weight: 400;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    input {
+      width: 100%;
+      font-size: 1.25rem;
+      padding: 16px;
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      outline: none;
+    }
+
+    input:focus { border-color: var(--accent); }
+
+    button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 18px;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--accent-dark); }
+    button:disabled { opacity: 0.6; cursor: wait; }
+
+    #result {
+      margin-top: 28px;
+      min-height: 120px;
+      padding: 24px 20px;
+      border-radius: 18px;
+      background: var(--bg);
+      border: 2px dashed var(--border);
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: 600;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    #result.idle, #result.loading { color: var(--muted); font-weight: 400; font-size: 1.1rem; }
+    #result.error {
+      background: var(--error-bg);
+      border-color: var(--error-text);
+      color: var(--error-text);
+      font-size: 1.1rem;
+    }
+    #result .name { color: var(--accent-dark); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>오늘의 응원 한마디</h1>
+    <p class="sub">닉네임을 적고 버튼을 눌러 보세요.</p>
+
+    <form id="form">
+      <label for="nickname">
+        공개용 닉네임
+        <span class="hint">화면에 보여도 괜찮은 이름만 적어 주세요. 비우면 "여러분"으로 불러요.</span>
+      </label>
+      <input id="nickname" name="nickname" type="text" maxlength="20" autocomplete="off" placeholder="예: 햇살">
+      <button id="btn" type="submit">응원 받기</button>
+    </form>
+
+    <div id="result" class="idle" role="status" aria-live="polite">여기에 응원 한마디가 나타나요.</div>
+  </main>
+
+  <script>
+    const form = document.getElementById("form");
+    const input = document.getElementById("nickname");
+    const btn = document.getElementById("btn");
+    const result = document.getElementById("result");
+
+    function show(state, text) {
+      result.className = state;
+      result.textContent = text;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      show("loading", "응원을 불러오는 중이에요…");
+
+      try {
+        const res = await fetch("/api/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: input.value.trim() })
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+
+        const data = await res.json();
+        if (typeof data.name !== "string" || typeof data.message !== "string") {
+          throw new Error("응답 형식 오류");
+        }
+
+        // 서버가 보낸 이름과 문장만 표시합니다.
+        result.className = "done";
+        result.textContent = "";
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = data.name + "님,";
+        result.append(name, document.createElement("br"), data.message);
+      } catch (err) {
+        show("error", "응원을 받아오지 못했어요. 잠시 후 다시 시도해 주세요. (" + err.message + ")");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
